@@ -261,7 +261,7 @@ def run(db_dir):
                             else:
                                 fk_table = fk_str
                                 fk_col = "id"
-                            fk = (fk_table, "fk_col")
+                            fk = (fk_table, fk_col)
                             i += 1
                         else:
                             break
