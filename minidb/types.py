@@ -9,7 +9,8 @@ class Column:
 
     def to_line(self):
         fk = f"{self.fk[0]}:{self.fk[1]}" if self.fk else ""
-        return f"{self.name}|{self.ftype}|{int(self.pk)}|{fk}"
+        parts = [self.name, self.ftype, str(int(self.pk)), fk]
+        return "|".join(parts)
 
     @classmethod
     def from_line(cls, line: str):
