@@ -1,4 +1,5 @@
 import os
+import re
 from .database import Database
 from .types import Column
 
@@ -31,6 +32,42 @@ Available commands:
   join <left> <right> <union_condition>               - Join two tables together
   exit                                                - Exit the program
 """)
+
+def parse_where(cond_parts):
+    if not cond_parts:
+        return None
+    
+    cond_str = " ".join(cond_parts)
+    or_groups = re.split(r'\s+or\s+', cond_str, flags=re.IGNORECASE)
+    
+    def parse_and_group(text):
+        and_groups = re.split(r'\s+and\s+', text, flags=re.IGNORECASE)
+        result = []
+        for cond in and_groups:
+            if not cond.strip(): continue
+            m = re.match(r'([a-zA-Z0-9_]+)\s*([=!<>]+)\s*(.*)', cond.strip())
+            if m:
+                col, op, val = m.groups()
+                val = val.strip()
+                if (val.startswith("'") and val.endswith("'")) or (val.startswith('"') and val.endswith('"')):
+                    val = val[1:-1]
+                else:
+                    try: val = int(val)
+                    except ValueError:
+                        try: val = float(val)
+                        except ValueError: pass
+                result.append((col, op, val))
+        return result
+
+    if len(or_groups) > 1:
+        where_or = []
+        for group in or_groups:
+            where_or.append(parse_and_group(group))
+        return {"or": where_or}
+    else:
+        return parse_and_group(cond_str)
+
+
 
 def run(db_dir):
     print(f"Downloading MiniDB from: {os.path.abspath(db_dir)}")
@@ -108,21 +145,8 @@ def run(db_dir):
                     if w_idx > 2:
                         cols = parts[2].split(",")
                     cond_parts = parts[w_idx+1:]
-                    where = []
-                    i = 0
-                    while i < len(cond_parts):
-                        if cond_parts[i].lower() == "and":
-                            i += 1
-                            continue
-                        col = cond_parts[i]
-                        op = cond_parts[i+1]
-                        val = cond_parts[i+2]
-                        try: val = int(val)
-                        except ValueError:
-                            try: val = float(val)
-                            except ValueError: pass
-                        where.append((col, op, val))
-                        i += 3
+                    where = parse_where(cond_parts)
+                    
                 else:
                     if len(parts) > 2:
                         cols = parts[2].split(",")
@@ -158,22 +182,8 @@ def run(db_dir):
                     updates[k] = v
 
                 cond_parts = parts[where_idx+1:]
-                where = []
-                i = 0
-                while i < len(cond_parts):
-                    if cond_parts[i].lower() == "and":
-                        i += 1
-                        continue
-                    col = cond_parts[i]
-                    op = cond_parts[i+1]
-                    val = cond_parts[i+2]
-                    try: val = int(val)
-                    except ValueError:
-                        try: val = float(val)
-                        except ValueError: pass
-                    where.append((col, op, val))
-                    i += 3
-
+                where = parse_where(cond_parts)
+                
                 count = db.update(table_name, where=where, updates=updates)
                 print(f"Updated lines: {count}")
 
@@ -189,21 +199,8 @@ def run(db_dir):
                     where_idx = parts.index("where")
                     cond_parts = parts[where_idx+1:]
                     
-                    where = []
-                    i = 0
-                    while i < len(cond_parts):
-                        if cond_parts[i].lower() == "and":
-                            i += 1
-                            continue
-                        col = cond_parts[i]
-                        op = cond_parts[i+1]
-                        val = cond_parts[i+2]
-                        try: val = int(val)
-                        except ValueError:
-                            try: val = float(val)
-                            except ValueError: pass
-                        where.append((col, op, val))
-                        i += 3
+                    where = parse_where(cond_parts)
+                    
                 else:
                     print("Attencion: Condition WHERE do not set. ALL records from the table will be deleted!")
 
